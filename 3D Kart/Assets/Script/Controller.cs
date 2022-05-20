@@ -3,16 +3,16 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-public class Controller : MonoBehaviour,IPointerUpHandler,IPointerDownHandler, IDragHandler
+public class Controller : MonoBehaviour
 {
-    public RectTransform pad;
-    public RectTransform stick;
-    Vector3 playerRotate;
 
     Car player;
     Animator playerAni;
     bool onMove;
-    public float playerSpeed;
+    public float playerSpeed=20.0f;
+    public float rotateSpeed=30.0f;
+
+    private Rigidbody playerRigidbody;
 
         // Start is called before the first frame update
     private void Start()
@@ -20,106 +20,28 @@ public class Controller : MonoBehaviour,IPointerUpHandler,IPointerDownHandler, I
 
         player = GameManager.instance.player;
         playerAni = player.GetComponent<Animator>();
-        StartCoroutine("PlayerMove");
-    }
-    public void OnPointerUp(PointerEventData eventData)
-    {
-        stick.localPosition = Vector3.zero;
-        playerRotate = Vector3.zero;
+        playerRigidbody = player.GetComponent<Rigidbody>();
     }
 
-    public void OnPointerDown(PointerEventData eventData)
+    private void FixedUpdate()
     {
-
+        Move();
+        Rotate();
     }
 
-    public void OnDrag(PointerEventData eventData)
+    void Move()
     {
-        stick.position = eventData.position;
-        stick.localPosition = Vector3.ClampMagnitude(eventData.position - (Vector2)pad.position, pad.rect.width * 0.5f);
-
-        playerRotate = new Vector3(0, stick.localPosition.x, 0).normalized;
+        float input = Input.GetAxis("Vertical");
+        Vector3 moveDistance = input * transform.forward * playerSpeed * Time.deltaTime;
+        playerRigidbody.MovePosition(playerRigidbody.position + moveDistance);
     }
 
-    public void OnMove()
+    void Rotate()
     {
-        StartCoroutine("Acceleration");
-        onMove = true;
-    }
-    public void OffMove()
-    {
-        StartCoroutine("Braking");
-    }
-    IEnumerator PlayerMove()
-    {
-        while(true)
-        {
-            if(onMove)
-            {
-                player.transform.Translate(Vector3.forward * playerSpeed * Time.deltaTime);
-                if(Mathf.Abs(stick.localPosition.x)>pad.rect.width*0.2f)
-                {
-                    player.transform.Rotate(playerRotate * 30 * Time.deltaTime);
-                }
+        float input = Input.GetAxis("Horizontal");
+        float turn = input * rotateSpeed * Time.deltaTime;
 
-                if (Mathf.Abs(stick.localPosition.x) <= pad.rect.width * 0.2f)
-                    playerAni.Play("Ani_Forward");
-                if (stick.localPosition.x > pad.rect.width * 0.2f)
-                    playerAni.Play("Ani_Right");
-                if (stick.localPosition.x < pad.rect.width * -0.2f)
-                    playerAni.Play("Ani_Left");
-            }
-            if(!onMove)
-            {
-                playerAni.Play("Ani_Idle");
-            }
-            yield return null;
-        }
-
-    }
-
-    IEnumerator Acceleration()
-    {
-
-        StopCoroutine("Braking");
-        while(true)
-        {
-            playerSpeed += 7 * Time.deltaTime; //초당 7씩 증가
-
-            if (playerSpeed >= player.carSpeed)
-                playerSpeed -= 10 * Time.deltaTime;
-
-
-            yield return null;
-
-        }
-    }
-
-    IEnumerator Braking()
-    {
-
-        StopCoroutine("Acceleration");
-        while (true)
-        {
-            playerSpeed -= 7 * Time.deltaTime;
-
-            if(playerSpeed<=0)
-            {
-                playerSpeed = 0;
-                onMove = false;
-                StopCoroutine("Braking");
-            }
-
-            yield return null;
-        }
-    }
-
-    private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.A))
-            OnMove();
-        if (Input.GetKeyUp(KeyCode.A))
-            OffMove();
+        playerRigidbody.rotation = playerRigidbody.rotation * Quaternion.Euler(0f, turn, 0f);
     }
 
 
